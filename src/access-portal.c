@@ -127,6 +127,14 @@ static enum media_role media_role_from_string(const char *media_role_str)
 		return MEDIA_ROLE_INVALID;
 }
 
+static enum media_role media_role_from_id(const char *media_role_str)
+{
+	if (spa_streq(media_role_str, "camera"))
+		return MEDIA_ROLE_CAMERA;
+	else
+		return MEDIA_ROLE_INVALID;
+}
+
 static enum media_role parse_media_roles(const char *media_types_str)
 {
 	enum media_role media_roles = 0;
@@ -552,6 +560,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 	const char *id;
 	dbus_bool_t deleted;
 	DBusMessageIter permissions_iter;
+	enum media_role media_role;
 
 	if (!dbus_message_is_signal(message, "org.freedesktop.impl.portal.PermissionStore",
 				   "Changed"))
@@ -572,6 +581,8 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 
 	if (!spa_streq(table, "devices") || !spa_streq(id, "camera"))
 		return DBUS_HANDLER_RESULT_HANDLED;
+
+	media_role = media_role_from_id(id);
 
 	dbus_message_iter_next(&iter);
 	dbus_message_iter_get_basic(&iter, &deleted);
@@ -609,11 +620,11 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 			    !spa_streq(client->app_id, app_id))
 				continue;
 
-			if (!(client->media_roles & MEDIA_ROLE_CAMERA))
+			if (!(client->media_roles & media_role))
 				continue;
 
 			if (camera_allowed)
-				client->allowed_media_roles |= MEDIA_ROLE_CAMERA;
+				client->allowed_media_roles |= media_role;
 
 			sm_media_session_for_each_object(impl->session,
 						set_global_permissions,
