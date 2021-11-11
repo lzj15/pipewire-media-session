@@ -144,7 +144,7 @@ static enum media_role parse_media_roles(const char *media_types_str)
 
 		media_role = media_role_from_string(media_role_str);
 		if (media_role != MEDIA_ROLE_INVALID) {
-			media_roles |= MEDIA_ROLE_CAMERA;
+			media_roles |= media_role;
 		}
 		else {
 			pw_log_debug("Client specified unknown media role '%s'",
