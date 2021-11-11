@@ -86,8 +86,10 @@ enum media_role {
 	MEDIA_ROLE_INVALID = -1,
 	MEDIA_ROLE_NONE = 0,
 	MEDIA_ROLE_CAMERA = 1 << 0,
+	MEDIA_ROLE_SPEAKERS = 1 << 1,
+	MEDIA_ROLE_MICROPHONE = 1 << 2,
 };
-#define MEDIA_ROLE_ALL (MEDIA_ROLE_CAMERA)
+#define MEDIA_ROLE_ALL (MEDIA_ROLE_CAMERA | MEDIA_ROLE_SPEAKERS | MEDIA_ROLE_MICROPHONE)
 
 struct impl {
 	struct sm_media_session *session;
@@ -123,6 +125,10 @@ static enum media_role media_role_from_string(const char *media_role_str)
 {
 	if (spa_streq(media_role_str, "Camera"))
 		return MEDIA_ROLE_CAMERA;
+	else if (spa_streq(media_role_str, "Speakers"))
+		return MEDIA_ROLE_SPEAKERS;
+	else if (spa_streq(media_role_str, "Microphone"))
+		return MEDIA_ROLE_MICROPHONE;
 	else
 		return MEDIA_ROLE_INVALID;
 }
@@ -131,6 +137,10 @@ static enum media_role media_role_from_id(const char *media_role_str)
 {
 	if (spa_streq(media_role_str, "camera"))
 		return MEDIA_ROLE_CAMERA;
+	else if (spa_streq(media_role_str, "speakers"))
+		return MEDIA_ROLE_SPEAKERS;
+	else if (spa_streq(media_role_str, "microphone"))
+		return MEDIA_ROLE_MICROPHONE;
 	else
 		return MEDIA_ROLE_INVALID;
 }
@@ -485,6 +495,10 @@ static void do_permission_store_check(struct client *client)
 	allowed_media_roles = MEDIA_ROLE_NONE;
 	if (!lookup_permission(client, bus, "camera", MEDIA_ROLE_CAMERA, &allowed_media_roles))
 		goto err_not_allowed;
+	if (!lookup_permission(client, bus, "speakers", MEDIA_ROLE_SPEAKERS, &allowed_media_roles))
+		goto err_not_allowed;
+	if (!lookup_permission(client, bus, "microphone", MEDIA_ROLE_MICROPHONE, &allowed_media_roles))
+		goto err_not_allowed;
 
 	client->allowed_media_roles = allowed_media_roles;
 
@@ -579,7 +593,10 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 	dbus_message_iter_next(&iter);
 	dbus_message_iter_get_basic(&iter, &id);
 
-	if (!spa_streq(table, "devices") || !spa_streq(id, "camera"))
+	if (!spa_streq(table, "devices"))
+		return DBUS_HANDLER_RESULT_HANDLED;
+
+	if (!spa_streq(id, "camera") && !spa_streq(id, "microphone") && !spa_streq(id, "speakers"))
 		return DBUS_HANDLER_RESULT_HANDLED;
 
 	media_role = media_role_from_id(id);
