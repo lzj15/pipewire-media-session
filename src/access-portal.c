@@ -597,7 +597,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 		DBusMessageIter permissions_entry_iter;
 		const char *app_id;
 		DBusMessageIter permission_values_iter;
-		bool camera_allowed;
+		bool allowed;
 
 		dbus_message_iter_recurse(&permissions_iter,
 					  &permissions_entry_iter);
@@ -607,7 +607,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 		dbus_message_iter_recurse(&permissions_entry_iter,
 					  &permission_values_iter);
 
-		camera_allowed = check_permission_allowed(&permission_values_iter);
+		allowed = check_permission_allowed(&permission_values_iter);
 
 		spa_list_for_each(client, &impl->client_list, link) {
 			if (!client->portal_managed)
@@ -623,7 +623,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 			if (!(client->media_roles & media_role))
 				continue;
 
-			if (camera_allowed)
+			if (allowed)
 				client->allowed_media_roles |= media_role;
 
 			sm_media_session_for_each_object(impl->session,
