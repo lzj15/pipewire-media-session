@@ -281,7 +281,8 @@ set_global_permissions(void *data, struct sm_object *object)
 
 	if (set_permission) {
 		permissions[n_permissions++] =
-			PW_PERMISSION_INIT(object->id, allowed ? PW_PERM_ALL : 0);
+			PW_PERMISSION_INIT(object->id,
+					   allowed ? client->allowed_media_roles : 0);
 		pw_log_info("%p: object %d allowed:%d", impl, object->id, allowed);
 		pw_client_update_permissions(client->obj->obj.proxy,
 				n_permissions, permissions);
