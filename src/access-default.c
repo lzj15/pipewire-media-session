@@ -82,6 +82,8 @@
  *     }
  * ]
  * ```
+ *
+ * See \ref page_media_session_rule_syntax for more information about the syntax of `rules`.
  */
 
 #define NAME		"access-default"

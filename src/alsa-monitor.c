@@ -111,6 +111,8 @@
  * ]
  * ```
  *
+ * See \ref page_media_session_rule_syntax for more information about the syntax of `rules`.
+ *
  * ## Module-specific properties:
  *
  * This modules supports the following entries in the `properties` dictionary:
