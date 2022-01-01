@@ -3,6 +3,7 @@ conf_config.set('VERSION', '@0@'.format(media_session_version))
 conf_config.set('MEDIA_SESSION_CONFIG_DIR', media_session_configdir)
 
 conf_files = [
+  [ 'access-default.conf', 'access-default.conf' ],
   [ 'bluez-monitor.conf', 'bluez-monitor.conf' ],
   [ 'v4l2-monitor.conf', 'v4l2-monitor.conf' ],
   [ 'media-session.conf', 'media-session.conf' ],

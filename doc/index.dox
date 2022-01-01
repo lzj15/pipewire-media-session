@@ -19,19 +19,8 @@ specify an alternative config directory.
 
 ## Access management
 
-The \ref page_media_session_module_access_default module handles clients
-that have \ref PW_KEY_ACCESS set to "flatpak". Other clients are
-ignored.
-
-The module sets the permissions of all objects to `RX`. This limits the
-flatpaks from doing modifications to other objects.
-
-Because this will also set the core object permission `R`, the client will
-resume with the new permissions.
-
-`pipewire-media-session` implements \ref PW_KEY_MEDIA_CATEGORY type
-"Manager" applications by simply setting the client permissions to ALL. No
-additional checks are performed yet.
+The \ref page_media_session_module_access_default module monitors
+clients and sets the initial permissions based on its configuration file.
 
 ## Modules
 

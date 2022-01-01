@@ -2440,7 +2440,7 @@ static const struct {
 	const char *props;
 
 } modules[] = {
-	{ "access-default", "manage flatpak access", sm_access_default_start, NULL },
+	{ "access-default", "manage default client permissions", sm_access_default_start, NULL },
 	{ "portal", "manage portal permissions", sm_access_portal_start, NULL },
 	{ "metadata", "export metadata API", sm_metadata_start, NULL },
 	{ "default-nodes", "restore default nodes", sm_default_nodes_start, NULL },
