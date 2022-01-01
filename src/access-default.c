@@ -36,7 +36,7 @@
 
 #include "media-session.h"
 
-/** \page page_media_session_module_access_flatpak Media Session Module: Access Flatpak
+/** \page page_media_session_module_access_default Media Session Module: Access Default
  *
  * The Access Flatpak module manages permissions for flatpak clients. It
  * monitors clients with a \ref PW_KEY_ACCESS value of `"flatpak"` and
@@ -54,8 +54,8 @@
  * - \ref PW_KEY_ACCESS
  * - \ref PW_KEY_MEDIA_CATEGORY (optional, only matters for "Manager" objects)
  */
-#define NAME		"access-flatpak"
-#define SESSION_KEY	"access-flatpak"
+#define NAME		"access-default"
+#define SESSION_KEY	"access-default"
 
 PW_LOG_TOPIC_STATIC(mod_topic, "ms.mod." NAME);
 #define PW_LOG_TOPIC_DEFAULT mod_topic
@@ -199,7 +199,7 @@ static const struct sm_media_session_events session_events = {
 	.destroy = session_destroy,
 };
 
-int sm_access_flatpak_start(struct sm_media_session *session)
+int sm_access_default_start(struct sm_media_session *session)
 {
 	struct impl *impl;
 

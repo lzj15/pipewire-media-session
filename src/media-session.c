@@ -82,7 +82,7 @@ PW_LOG_TOPIC(ms_topic, "ms.core");
 #define sm_media_session_emit_seat_active(s,...)	sm_media_session_emit(s, seat_active, 0, __VA_ARGS__)
 #define sm_media_session_emit_dbus_disconnected(s)	sm_media_session_emit(s, dbus_disconnected, 0)
 
-int sm_access_flatpak_start(struct sm_media_session *sess);
+int sm_access_default_start(struct sm_media_session *sess);
 int sm_access_portal_start(struct sm_media_session *sess);
 int sm_default_nodes_start(struct sm_media_session *sess);
 int sm_default_profile_start(struct sm_media_session *sess);
@@ -2440,7 +2440,7 @@ static const struct {
 	const char *props;
 
 } modules[] = {
-	{ "flatpak", "manage flatpak access", sm_access_flatpak_start, NULL },
+	{ "access-default", "manage flatpak access", sm_access_default_start, NULL },
 	{ "portal", "manage portal permissions", sm_access_portal_start, NULL },
 	{ "metadata", "export metadata API", sm_metadata_start, NULL },
 	{ "default-nodes", "restore default nodes", sm_default_nodes_start, NULL },
