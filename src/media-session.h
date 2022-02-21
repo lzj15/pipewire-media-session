@@ -72,6 +72,8 @@ struct sm_object {
 	uint32_t changed;		/**< changed since last update */
 	struct pw_properties *props;	/**< global properties */
 
+	uint64_t serial;		/**< object serial */
+
 	struct pw_proxy *proxy;
 	struct spa_hook proxy_listener;
 	struct spa_hook object_listener;

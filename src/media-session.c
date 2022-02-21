@@ -211,6 +211,8 @@ struct registry_event {
 	uint32_t version;
 	const struct spa_dict *props;
 
+	uint64_t serial;
+
 	struct pw_proxy *proxy;
 
 	int seq;
@@ -1225,6 +1227,7 @@ static struct sm_object *init_object(struct impl *impl, const struct object_info
 	obj->mask |= SM_OBJECT_CHANGE_MASK_PROPERTIES | SM_OBJECT_CHANGE_MASK_BIND;
 	obj->avail |= obj->mask;
 	obj->monitor_global = monitor_global;
+	obj->serial = SPA_ID_INVALID;
 	spa_hook_list_init(&obj->hooks);
 	spa_list_init(&obj->data);
 
@@ -1281,6 +1284,7 @@ bind_object(struct impl *impl, const struct object_info *info, struct registry_e
 	re->proxy = NULL;
 
 	obj = init_object(impl, info, proxy, proxy, re->id, re->props, false);
+	obj->serial = re->serial;
 	sm_object_discard(obj);
 	add_object(impl, obj, re->id);
 
@@ -1295,7 +1299,10 @@ update_object(struct impl *impl, const struct object_info *info, struct sm_objec
 {
 	struct pw_proxy *proxy;
 
+	spa_assert(re->proxy);
+
 	pw_properties_update(obj->props, re->props);
+	obj->serial = re->serial;
 
 	if (obj->proxy != NULL)
 		return 0;
@@ -1339,8 +1346,9 @@ static int handle_registry_event(struct impl *impl, struct registry_event *re)
 
 	obj = find_object(impl, re->id, NULL);
 
-	pw_log_debug("%p: new global '%d' %s/%d obj:%p monitor:%d seq:%d",
-			impl, re->id, re->type, re->version, obj, re->monitor, re->seq);
+	pw_log_debug("%p: new global '%d' %s/%d serial:%"PRIu64" obj:%p monitor:%d seq:%d",
+			impl, re->id, re->type, re->version, re->serial, obj,
+			re->monitor, re->seq);
 
 	info = get_object_info(impl, re->type);
 	if (info == NULL)
@@ -1357,9 +1365,17 @@ static int handle_registry_event(struct impl *impl, struct registry_event *re)
 		 * event is already queued and arrives soon.
 		 */
 		bind_object(impl, info, re);
-	} else if (obj != NULL && obj->monitor_global == re->monitor) {
-		/* Each core handles their own object updates */
-		update_object(impl, info, obj, re);
+	} else if (obj != NULL && !obj->monitor_global) {
+		/* Policy core handles its own object updates */
+		if (!re->monitor)
+			update_object(impl, info, obj, re);
+	} else if (obj != NULL && obj->monitor_global) {
+		/* Monitor core events come first, and set the unique object serial.
+		 * Policy core handles updates after that. */
+		if (re->monitor && obj->serial == SPA_ID_INVALID)
+			obj->serial = re->serial;
+		else if (!re->monitor && re->serial == obj->serial)
+			update_object(impl, info, obj, re);
 	}
 
 	sm_media_session_schedule_rescan(&impl->this);
@@ -1386,6 +1402,20 @@ static int monitor_sync(struct impl *impl)
 	pw_log_debug("%p: monitor sync start %d", impl, impl->monitor_seq);
 	sm_media_session_schedule_rescan(&impl->this);
 	return impl->monitor_seq;
+}
+
+static uint64_t get_serial(const struct spa_dict *props)
+{
+	const char *str;
+	uint64_t serial;
+
+	if (props) {
+		str = spa_dict_lookup(props, PW_KEY_OBJECT_SERIAL);
+		if (spa_atou64(str, &serial, 0))
+			return serial;
+	}
+
+	return SPA_ID_INVALID;
 }
 
 static void
@@ -1432,6 +1462,7 @@ registry_global(void *data, uint32_t id,
 	re->permissions = permissions;
 	re->type = info->type;
 	re->version = version;
+	re->serial = get_serial(props);
 
 	/* Bind proxy now */
 	re->proxy = pw_registry_bind(impl->registry, id, type, info->version, info->size);
@@ -1486,7 +1517,7 @@ monitor_registry_global(void *data, uint32_t id,
 	const struct object_info *info;
 	struct registry_event re = {
 		.id = id, .permissions = permissions, .type = type, .version = version,
-		.props = props,	.monitor = true
+		.props = props,	.monitor = true, .serial = get_serial(props)
 	};
 
 	pw_log_debug("%p: registry event (monitor) for new global '%d'", impl, id);
@@ -1495,12 +1526,8 @@ monitor_registry_global(void *data, uint32_t id,
 	if (info == NULL)
 		return;
 
-	/* Bind proxy now from policy core */
-	re.proxy = pw_registry_bind(impl->registry, id, type, info->version, 0);
-	if (re.proxy)
-		handle_registry_event(impl, &re);
-	else
-		pw_log_warn("%p: can't handle global %d: %s", impl, id, spa_strerror(-errno));
+	/* Policy core will bind the proxy later */
+	handle_registry_event(impl, &re);
 
 	registry_event_free(&re);
 	return;
