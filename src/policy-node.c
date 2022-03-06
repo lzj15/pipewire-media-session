@@ -575,13 +575,24 @@ static bool check_node_name(struct node *node, const char *name)
 	return false;
 }
 
-static struct node *find_node_by_id_name(struct impl *impl, uint32_t id, const char *name)
+static struct node *find_node_by_id_name(struct impl *impl, uint32_t id, const char *name, bool name_is_serial)
 {
 	struct node *node;
-	uint32_t name_id = name ? (uint32_t)atoi(name) : SPA_ID_INVALID;
+	uint32_t name_id = SPA_ID_INVALID;
+	uint64_t serial = SPA_ID_INVALID;
+
+	if (name_is_serial) {
+		if (spa_atou64(name, &serial, 0))
+			name = NULL;
+	} else {
+		if (spa_atou32(name, &name_id, 0))
+			name = NULL;
+	}
 
 	spa_list_for_each(node, &impl->node_list, link) {
 		if (node->id == id || node->id == name_id)
+			return node;
+		if (node->obj->obj.serial == serial && serial != SPA_ID_INVALID)
 			return node;
 		if (check_node_name(node, name))
 			return node;
@@ -640,18 +651,29 @@ static const char *get_device_name(struct node *node)
 	return pw_properties_get(node->obj->obj.props, PW_KEY_NODE_NAME);
 }
 
-static uint32_t find_device_for_name(struct impl *impl, const char *name)
+static uint32_t find_device_for_name(struct impl *impl, const char *name, bool is_serial, bool is_id)
 {
 	struct node *node;
 	const char *str;
-	uint32_t id = atoi(name);
+	uint32_t id = SPA_ID_INVALID;
+	uint64_t serial = SPA_ID_INVALID;
+
+	if (is_serial) {
+		if (spa_atou64(name, &serial, 0))
+			name = NULL;
+	} else if (is_id) {
+		if (spa_atou32(name, &id, 0))
+			name = NULL;
+	}
 
 	spa_list_for_each(node, &impl->node_list, link) {
 		if (id == node->obj->obj.id)
 			return id;
+		if (serial == node->obj->obj.serial && serial != SPA_ID_INVALID)
+			return node->obj->obj.id;
 		if ((str = get_device_name(node)) == NULL)
 			continue;
-		if (spa_streq(str, name))
+		if (name != NULL && spa_streq(str, name))
 			return node->obj->obj.id;
 	}
 	return SPA_ID_INVALID;
@@ -1100,15 +1122,22 @@ static int rescan_node(struct impl *impl, struct node *n)
 	/* honor target node set by user or asked for by the client */
 	path_id = SPA_ID_INVALID;
 	if (n->obj->target_node != NULL)
-		path_id = find_device_for_name(impl, n->obj->target_node);
-	if (!n->obj->fixed_target &&
-			(str = spa_dict_lookup(props, PW_KEY_NODE_TARGET)) != NULL) {
-		bool has_target = ((uint32_t)atoi(str) != SPA_ID_INVALID);
-		path_id = find_device_for_name(impl, str);
-		if (!reconnect && has_target && path_id == SPA_ID_INVALID) {
-			/* don't use fallbacks for non-reconnecting nodes */
-			peer = NULL;
-			goto do_link;
+		path_id = find_device_for_name(impl, n->obj->target_node, false, false);
+	if (!n->obj->fixed_target) {
+		bool is_serial = true;
+		str = spa_dict_lookup(props, PW_KEY_TARGET_OBJECT);
+		if (str == NULL) {
+			str = spa_dict_lookup(props, PW_KEY_NODE_TARGET);
+			is_serial = false;
+		}
+		if (str) {
+			bool has_target = ((uint32_t)atoi(str) != SPA_ID_INVALID);
+			path_id = find_device_for_name(impl, str, is_serial, !is_serial);
+			if (!reconnect && has_target && path_id == SPA_ID_INVALID) {
+				/* don't use fallbacks for non-reconnecting nodes */
+				peer = NULL;
+				goto do_link;
+			}
 		}
 	}
 
@@ -1359,10 +1388,10 @@ static int metadata_property(void *object, uint32_t subject,
 		}
 		if (changed)
 			sm_media_session_schedule_rescan(impl->session);
-	} else if (key == NULL || spa_streq(key, "target.node")) {
+	} else if (key == NULL || spa_streq(key, "target.node") || spa_streq(key, "target.object")) {
 		struct node *src_node;
 
-		src_node = find_node_by_id_name(impl, subject, NULL);
+		src_node = find_node_by_id_name(impl, subject, NULL, false);
 		if (!src_node)
 			return 0;
 
@@ -1374,8 +1403,9 @@ static int metadata_property(void *object, uint32_t subject,
 		} else {
 			const char *str;
 			struct node *dst_node;
+			bool is_serial = spa_streq(key, "target.object");
 
-			dst_node = find_node_by_id_name(impl, SPA_ID_INVALID, value);
+			dst_node = find_node_by_id_name(impl, SPA_ID_INVALID, value, is_serial);
 			if (dst_node) {
 				str = get_device_name(dst_node);
 				if (!str)
