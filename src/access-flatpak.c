@@ -93,19 +93,23 @@ static void object_update(void *data)
 		uint32_t perms;
 
 		if (client->obj->info == NULL || client->obj->info->props == NULL ||
-		    (str = spa_dict_lookup(client->obj->info->props, PW_KEY_ACCESS)) == NULL ||
-		    !spa_streq(str, "flatpak"))
+		    (str = spa_dict_lookup(client->obj->info->props, PW_KEY_ACCESS)) == NULL)
 			return;
 
-		if ((str = spa_dict_lookup(client->obj->info->props, PW_KEY_MEDIA_CATEGORY)) != NULL &&
-		    (spa_streq(str, "Manager"))) {
-			/* FIXME, use permission store to check if this app is allowed to
-			 * be a manager app */
-			perms = PW_PERM_ALL;
-		} else {
-			/* limited access for everything else */
+		if (spa_streq(str, "flatpak")) {
+			if ((str = spa_dict_lookup(client->obj->info->props, PW_KEY_MEDIA_CATEGORY)) != NULL &&
+			    (spa_streq(str, "Manager"))) {
+				/* FIXME, use permission store to check if this app is allowed to
+				 * be a manager app */
+				perms = PW_PERM_ALL;
+			} else {
+				/* limited access for everything else */
+				perms = PW_PERM_R | PW_PERM_X;
+			}
+		} else if (spa_streq(str, "restricted")) {
 			perms = PW_PERM_R | PW_PERM_X;
-		}
+		} else
+			return;
 
 		pw_log_info("%p: flatpak client %d granted 0x%08x permissions"
 				, impl, client->id, perms);
