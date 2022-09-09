@@ -482,7 +482,7 @@ int sm_libcamera_monitor_start(struct sm_media_session *sess)
 
 	impl->session = sess;
 
-	impl->handle = pw_context_load_spa_handle(context, SPA_NAME_API_LIBCAMERA_ENUM_CLIENT, NULL);
+	impl->handle = pw_context_load_spa_handle(context, SPA_NAME_API_LIBCAMERA_ENUM_MANAGER, NULL);
 	if (impl->handle == NULL) {
 		res = -errno;
 		goto out_free;
