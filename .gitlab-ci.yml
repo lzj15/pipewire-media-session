@@ -22,7 +22,7 @@ include:
 .fedora:
   variables:
     # Update this tag when you want to trigger a rebuild
-    FDO_DISTRIBUTION_TAG: '2021-10-21.1'
+    FDO_DISTRIBUTION_TAG: '2022-09-26.0'
     FDO_DISTRIBUTION_VERSION: '34'
     FDO_DISTRIBUTION_PACKAGES: >-
       alsa-lib-devel
@@ -33,6 +33,7 @@ include:
       gcc
       gcc-c++
       git
+      glib2-devel
       graphviz
       systemd-devel
       ShellCheck
@@ -47,20 +48,20 @@ include:
 .ubuntu:
   variables:
     # Update this tag when you want to trigger a rebuild
-    FDO_DISTRIBUTION_TAG: '2021-10-14.1'
-    FDO_DISTRIBUTION_VERSION: '21.04'
+    FDO_DISTRIBUTION_TAG: '2022-09-26.0'
+    FDO_DISTRIBUTION_VERSION: '22.04'
     FDO_DISTRIBUTION_PACKAGES: >-
       libasound2-dev
+      libglib2.0-dev
       debhelper-compat
       findutils
       git
       libdbus-1-dev
+      meson
       ninja-build
       pkg-config
       systemd
       python3-pip
-    FDO_DISTRIBUTION_EXEC: >-
-      pip3 install meson
 
 .coverity:
   variables:
@@ -190,7 +191,7 @@ build_release:
   extends:
     - .build_on_fedora
   variables:
-    MESON_OPTIONS: "-Dtest=enabled -Dbuildtype=release -Db_ndebug=true"
+    MESON_OPTIONS: "-Dtests=enabled -Dbuildtype=release -Db_ndebug=true"
   parallel:
     matrix:
       - CC: [gcc, clang]
