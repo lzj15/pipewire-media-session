@@ -28,6 +28,8 @@
 #include <math.h>
 #include <time.h>
 
+#define PW_ENABLE_DEPRECATED
+
 #include "config.h"
 
 #include <spa/node/node.h>
