@@ -1,3 +1,18 @@
+# Media Session 0.4.2 (2022-01-20)
+
+This is a small release to keep the dead corpse walking... Repeated
+attempts to shoot it in the head seem to have failed (We don't think it
+is running with a lot of brains left). It does not look pretty and we
+don't know yet when it will finally stay down. What we do know is that some
+creatures (humans?) have been secretly feeding it with their brain cells
+and as such, here we are...
+
+Anyway, it contains some minor patches for some organ (memory?) leaks.
+It also adds some fixes to make things stumble on (compile?) and make
+disturbing slurping sounds again (work?) with the latest PipeWire versions.
+
+Seriously.. back off.. don't become a victim... use Wireplumber.
+
 # Media Session 0.4.1 (2021-10-27)
 
 Minor bugfix release functionally equivalent to the previous release.
