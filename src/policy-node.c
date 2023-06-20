@@ -409,7 +409,7 @@ static const struct sm_object_events object_events = {
 static int
 handle_node(struct impl *impl, struct sm_object *object)
 {
-	const char *media_class = NULL, *role;
+	const char *media_class = NULL, *role = NULL;
 	enum pw_direction direction;
 	struct node *node;
 	uint32_t client_id = SPA_ID_INVALID;
