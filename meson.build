@@ -63,7 +63,7 @@ cdata.set_quoted('PACKAGE_TARNAME', 'media-session')
 cdata.set_quoted('PACKAGE_URL', '"https://pipewire.org"')
 cdata.set_quoted('PACKAGE_VERSION', media_session_version)
 
-pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.3.44')
+pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.3.65')
 
 systemd = dependency('systemd', required: get_option('systemd'))
 systemd_dep = dependency('libsystemd',required: get_option('systemd'))
