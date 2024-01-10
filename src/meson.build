@@ -5,7 +5,7 @@ if systemd.found() and systemd_dep.found()
   sm_logind_dep = [systemd_dep]
 endif
 media_session_sources = [
-    'access-flatpak.c',
+    'access-default.c',
     'access-portal.c',
     'alsa-no-dsp.c',
     'alsa-midi.c',

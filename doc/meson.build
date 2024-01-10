@@ -15,6 +15,7 @@ endif
 # api-tree.dox should be first to determine ordering of Modules.
 extra_docs = [
   'index.dox',
+  'rules.dox',
 ]
 
 inputs = []

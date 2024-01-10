@@ -1,0 +1,64 @@
+/** \page page_media_session_rule_syntax Rule syntax
+
+Certain modules have configuration files which enable the modification of certain PipeWire objects.
+For example:
+
+- \ref page_media_session_module_access_default
+- \ref page_media_session_module_alsa_monitor
+- \ref page_media_session_module_bluez_monitor
+- \ref page_media_session_module_v4l2_monitor
+
+Such configuration files contain a `rules` array, which has a number of rules in it.
+Each rule is an object with two properties: `matches` and `actions`.
+
+The concrete semantics of `actions` depend on the particular module, but the
+`matches` section works similarly for all of them. The `matches` section
+is an array which contains match objects. Each match object has key-value pairs.
+
+For example:
+```
+rules = [
+    {
+        matches = [
+            {
+                some.property = "~alsa_input.*"
+            }
+            {
+                some.property = "~alsa_output.*"
+                some.other = "some value"
+            }
+            {
+                something.else = "42"
+                whatever.it.is = "bluez"
+                fourth.thing = null
+            }
+        ]
+        actions = [
+            ... module-dependent actions ...
+        ]
+    }
+    ... other rules ...
+]
+```
+
+The previous `matches` section contains three match objects. The given rule will match
+if at least *one* match object in the `matches` section indicates match. A match object
+indicates match if *all* properties match. A single property may be checked in any of the
+following three ways:
+- simple equality,
+- regular expression (`= "~..."`),
+- non-existence (`= null`).
+
+Regular expression must be prefixed by `~`.
+Matching againts `null` (e.g. `fourth.thing = null` in the example)
+will succeed if the given property is **not** set on the object.
+
+In other words, the `matches` section in the example indicates match if
+- the `some.property` property of the object matches the "alsa_input.*" regular expression; or
+- the `some.property` property matches the "alsa_output.*" regular expression, and
+  the `some.other` property is equal to "some value"; or
+- the `something.else` property is equal to "42", and
+  the `whatever.it.is` property is equal to "bluez", and
+  the `fourth.thing` property is **not** set on the object.
+
+*/
