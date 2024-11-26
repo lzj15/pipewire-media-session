@@ -479,7 +479,7 @@ static int restore_route_params(struct device *dev, const char *val, const struc
 	if (pw_log_level_enabled(SPA_LOG_LEVEL_DEBUG))
 		spa_debug_pod(2, NULL, param);
 
-	pw_device_set_param((struct pw_node*)dev->obj->obj.proxy,
+	pw_device_set_param((struct pw_device*)dev->obj->obj.proxy,
 			SPA_PARAM_Route, 0, param);
 
 	sm_media_session_schedule_rescan(dev->impl->session);

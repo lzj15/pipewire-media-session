@@ -114,7 +114,7 @@ static void object_update(void *data)
 		pw_log_info("%p: flatpak client %d granted 0x%08x permissions"
 				, impl, client->id, perms);
 		permissions[0] = PW_PERMISSION_INIT(PW_ID_ANY, perms);
-		pw_client_update_permissions(client->obj->obj.proxy,
+		pw_client_update_permissions((struct pw_client*)client->obj->obj.proxy,
 				1, permissions);
 		client->active = true;
 	}
