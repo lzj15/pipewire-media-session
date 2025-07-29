@@ -33,6 +33,7 @@
 #include <spa/utils/json.h>
 #include <spa/utils/string.h>
 #include <spa/pod/builder.h>
+#include <spa/pod/iter.h>
 #include <spa/pod/parser.h>
 
 #include "pipewire/pipewire.h"

@@ -343,7 +343,7 @@ static char *serialize_props(const struct device *dev, const struct spa_pod *par
 			uint32_t i, codecs[64], n_codecs;
 
 			n_codecs = spa_pod_copy_array(&prop->value, SPA_TYPE_Id,
-					codecs, sizeof(codecs));
+					codecs, SPA_N_ELEMENTS(codecs));
 			if (n_codecs == 0)
 				continue;
 
