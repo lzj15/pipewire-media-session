@@ -150,7 +150,7 @@ static bool is_unpositioned(struct spa_audio_info *info)
 	if (SPA_FLAG_IS_SET(info->info.raw.flags, SPA_AUDIO_FLAG_UNPOSITIONED))
 		return true;
 	for (i = 0; i < info->info.raw.channels; i++) {
-		uint32_t pos = spa_format_audio_raw_get_position(&info->info.raw, i);
+		uint32_t pos = info->info.raw.position[i];
 		if (SPA_AUDIO_CHANNEL_IS_AUX(pos))
 			return true;
 	}
