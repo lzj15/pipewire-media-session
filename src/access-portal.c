@@ -86,8 +86,10 @@ enum media_role {
 	MEDIA_ROLE_INVALID = -1,
 	MEDIA_ROLE_NONE = 0,
 	MEDIA_ROLE_CAMERA = 1 << 0,
+	MEDIA_ROLE_SPEAKERS = 1 << 1,
+	MEDIA_ROLE_MICROPHONE = 1 << 2,
 };
-#define MEDIA_ROLE_ALL (MEDIA_ROLE_CAMERA)
+#define MEDIA_ROLE_ALL (MEDIA_ROLE_CAMERA | MEDIA_ROLE_SPEAKERS | MEDIA_ROLE_MICROPHONE)
 
 struct impl {
 	struct sm_media_session *session;
@@ -123,6 +125,22 @@ static enum media_role media_role_from_string(const char *media_role_str)
 {
 	if (spa_streq(media_role_str, "Camera"))
 		return MEDIA_ROLE_CAMERA;
+	else if (spa_streq(media_role_str, "Speakers"))
+		return MEDIA_ROLE_SPEAKERS;
+	else if (spa_streq(media_role_str, "Microphone"))
+		return MEDIA_ROLE_MICROPHONE;
+	else
+		return MEDIA_ROLE_INVALID;
+}
+
+static enum media_role media_role_from_id(const char *media_role_str)
+{
+	if (spa_streq(media_role_str, "camera"))
+		return MEDIA_ROLE_CAMERA;
+	else if (spa_streq(media_role_str, "speakers"))
+		return MEDIA_ROLE_SPEAKERS;
+	else if (spa_streq(media_role_str, "microphone"))
+		return MEDIA_ROLE_MICROPHONE;
 	else
 		return MEDIA_ROLE_INVALID;
 }
@@ -144,7 +162,7 @@ static enum media_role parse_media_roles(const char *media_types_str)
 
 		media_role = media_role_from_string(media_role_str);
 		if (media_role != MEDIA_ROLE_INVALID) {
-			media_roles |= MEDIA_ROLE_CAMERA;
+			media_roles |= media_role;
 		}
 		else {
 			pw_log_debug("Client specified unknown media role '%s'",
@@ -263,7 +281,8 @@ set_global_permissions(void *data, struct sm_object *object)
 
 	if (set_permission) {
 		permissions[n_permissions++] =
-			PW_PERMISSION_INIT(object->id, allowed ? PW_PERM_ALL : 0);
+			PW_PERMISSION_INIT(object->id,
+					   allowed ? client->allowed_media_roles : 0);
 		pw_log_info("%p: object %d allowed:%d", impl, object->id, allowed);
 		pw_client_update_permissions((struct pw_client*)client->obj->obj.proxy,
 				n_permissions, permissions);
@@ -361,16 +380,82 @@ check_permission_allowed(DBusMessageIter *iter)
 	return allowed;
 }
 
+static bool
+lookup_permission (struct client *client, DBusConnection *bus,
+		const char *id, enum media_role role,
+		enum media_role *out_media_role)
+{
+	enum media_role media_role = MEDIA_ROLE_NONE;
+	DBusMessageIter permissions_iter;
+	DBusMessageIter msg_iter;
+	DBusMessageIter r_iter;
+	DBusMessage *m = NULL;
+	DBusMessage *r = NULL;
+	DBusError error;
+	const char *table;
+
+	dbus_error_init(&error);
+
+	m = dbus_message_new_method_call("org.freedesktop.impl.portal.PermissionStore",
+					 "/org/freedesktop/impl/portal/PermissionStore",
+					 "org.freedesktop.impl.portal.PermissionStore",
+					 "Lookup");
+
+	dbus_message_iter_init_append(m, &msg_iter);
+
+	table = "devices";
+	dbus_message_iter_append_basic(&msg_iter, DBUS_TYPE_STRING, &table);
+	dbus_message_iter_append_basic(&msg_iter, DBUS_TYPE_STRING, &id);
+
+	if (!(r = dbus_connection_send_with_reply_and_block(bus, m, -1, &error))) {
+		pw_log_error("Failed to call permission store: %s", error.message);
+		dbus_error_free(&error);
+		return false;
+	}
+
+	dbus_message_unref(m);
+
+	dbus_message_iter_init(r, &r_iter);
+	dbus_message_iter_recurse(&r_iter, &permissions_iter);
+	while (dbus_message_iter_get_arg_type(&permissions_iter) !=
+	       DBUS_TYPE_INVALID) {
+		DBusMessageIter permissions_entry_iter;
+		const char *app_id;
+		DBusMessageIter permission_values_iter;
+		bool allowed;
+
+		dbus_message_iter_recurse(&permissions_iter,
+					  &permissions_entry_iter);
+		dbus_message_iter_get_basic(&permissions_entry_iter, &app_id);
+
+		pw_log_info("permissions %s", app_id);
+		if (!spa_streq(app_id, client->app_id)) {
+			dbus_message_iter_next(&permissions_iter);
+			continue;
+		}
+
+		dbus_message_iter_next(&permissions_entry_iter);
+		dbus_message_iter_recurse(&permissions_entry_iter,
+					  &permission_values_iter);
+
+		allowed = check_permission_allowed(&permission_values_iter);
+		pw_log_info("%s allowed %d", id, allowed);
+		if (allowed)
+			media_role |= role;
+		break;
+	}
+
+	dbus_message_unref(r);
+
+	*out_media_role = media_role;
+
+	return true;
+}
+
 static void do_permission_store_check(struct client *client)
 {
 	struct impl *impl = client->impl;
-	DBusMessage *m = NULL, *r = NULL;
-	DBusError error;
-	DBusMessageIter msg_iter;
-	const char *table;
-	const char *id;
-	DBusMessageIter r_iter;
-	DBusMessageIter permissions_iter;
+	enum media_role allowed_media_roles;
 	DBusConnection *bus;
 
 	if (client->app_id == NULL) {
@@ -408,68 +493,23 @@ static void do_permission_store_check(struct client *client)
 		return;
 	}
 
-	client->allowed_media_roles = MEDIA_ROLE_NONE;
-
-	dbus_error_init(&error);
-
-	m = dbus_message_new_method_call("org.freedesktop.impl.portal.PermissionStore",
-					 "/org/freedesktop/impl/portal/PermissionStore",
-					 "org.freedesktop.impl.portal.PermissionStore",
-					 "Lookup");
-
-	dbus_message_iter_init_append(m, &msg_iter);
-	table = "devices";
-	dbus_message_iter_append_basic(&msg_iter, DBUS_TYPE_STRING, &table);
-	id = "camera";
-	dbus_message_iter_append_basic(&msg_iter, DBUS_TYPE_STRING, &id);
-
-	if (!(r = dbus_connection_send_with_reply_and_block(bus, m, -1, &error))) {
-		pw_log_error("Failed to call permission store: %s", error.message);
-		dbus_error_free(&error);
+	allowed_media_roles = MEDIA_ROLE_NONE;
+	if (!lookup_permission(client, bus, "camera", MEDIA_ROLE_CAMERA, &allowed_media_roles))
 		goto err_not_allowed;
-	}
+	if (!lookup_permission(client, bus, "speakers", MEDIA_ROLE_SPEAKERS, &allowed_media_roles))
+		goto err_not_allowed;
+	if (!lookup_permission(client, bus, "microphone", MEDIA_ROLE_MICROPHONE, &allowed_media_roles))
+		goto err_not_allowed;
 
-	dbus_message_unref(m);
+	client->allowed_media_roles = allowed_media_roles;
 
-	dbus_message_iter_init(r, &r_iter);
-	dbus_message_iter_recurse(&r_iter, &permissions_iter);
-	while (dbus_message_iter_get_arg_type(&permissions_iter) !=
-	       DBUS_TYPE_INVALID) {
-		DBusMessageIter permissions_entry_iter;
-		const char *app_id;
-		DBusMessageIter permission_values_iter;
-		bool camera_allowed;
-
-		dbus_message_iter_recurse(&permissions_iter,
-					  &permissions_entry_iter);
-		dbus_message_iter_get_basic(&permissions_entry_iter, &app_id);
-
-		pw_log_info("permissions %s", app_id);
-		if (!spa_streq(app_id, client->app_id)) {
-			dbus_message_iter_next(&permissions_iter);
-			continue;
-		}
-
-		dbus_message_iter_next(&permissions_entry_iter);
-		dbus_message_iter_recurse(&permissions_entry_iter,
-					  &permission_values_iter);
-
-		camera_allowed = check_permission_allowed(&permission_values_iter);
-		pw_log_info("allowed %d", camera_allowed);
-		client->allowed_media_roles |=
-			camera_allowed ? MEDIA_ROLE_CAMERA : MEDIA_ROLE_NONE;
-
-		sm_media_session_for_each_object(impl->session,
-					set_global_permissions,
-					client);
-		break;
-	}
-
-	dbus_message_unref(r);
-
+	sm_media_session_for_each_object(impl->session,
+				set_global_permissions,
+				client);
 	return;
 
 err_not_allowed:
+	client->allowed_media_roles = MEDIA_ROLE_NONE;
 	return;
 }
 
@@ -535,6 +575,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 	const char *id;
 	dbus_bool_t deleted;
 	DBusMessageIter permissions_iter;
+	enum media_role media_role;
 
 	if (!dbus_message_is_signal(message, "org.freedesktop.impl.portal.PermissionStore",
 				   "Changed"))
@@ -553,8 +594,13 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 	dbus_message_iter_next(&iter);
 	dbus_message_iter_get_basic(&iter, &id);
 
-	if (!spa_streq(table, "devices") || !spa_streq(id, "camera"))
+	if (!spa_streq(table, "devices"))
 		return DBUS_HANDLER_RESULT_HANDLED;
+
+	if (!spa_streq(id, "camera") && !spa_streq(id, "microphone") && !spa_streq(id, "speakers"))
+		return DBUS_HANDLER_RESULT_HANDLED;
+
+	media_role = media_role_from_id(id);
 
 	dbus_message_iter_next(&iter);
 	dbus_message_iter_get_basic(&iter, &deleted);
@@ -569,7 +615,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 		DBusMessageIter permissions_entry_iter;
 		const char *app_id;
 		DBusMessageIter permission_values_iter;
-		bool camera_allowed;
+		bool allowed;
 
 		dbus_message_iter_recurse(&permissions_iter,
 					  &permissions_entry_iter);
@@ -579,7 +625,7 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 		dbus_message_iter_recurse(&permissions_entry_iter,
 					  &permission_values_iter);
 
-		camera_allowed = check_permission_allowed(&permission_values_iter);
+		allowed = check_permission_allowed(&permission_values_iter);
 
 		spa_list_for_each(client, &impl->client_list, link) {
 			if (!client->portal_managed)
@@ -592,11 +638,11 @@ static DBusHandlerResult permission_store_changed_handler(DBusConnection *connec
 			    !spa_streq(client->app_id, app_id))
 				continue;
 
-			if (!(client->media_roles & MEDIA_ROLE_CAMERA))
+			if (!(client->media_roles & media_role))
 				continue;
 
-			if (camera_allowed)
-				client->allowed_media_roles |= MEDIA_ROLE_CAMERA;
+			if (allowed)
+				client->allowed_media_roles |= media_role;
 
 			sm_media_session_for_each_object(impl->session,
 						set_global_permissions,
