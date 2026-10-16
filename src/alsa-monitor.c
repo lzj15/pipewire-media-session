@@ -48,14 +48,18 @@
 #include <spa/pod/parser.h>
 #include <spa/debug/dict.h>
 #include <spa/debug/pod.h>
+#ifdef HAVE_DBUS
 #include <spa/support/dbus.h>
+#endif
 
 #include <pipewire/pipewire.h>
 #include <pipewire/i18n.h>
 #include <pipewire/extensions/session-manager.h>
 
 #include "media-session.h"
+#ifdef HAVE_DBUS
 #include "reserve.h"
+#endif
 
 
 /** \page page_media_session_module_alsa_monitor Media Session Module: ALSA Monitor
@@ -154,9 +158,13 @@ struct device {
 
 	char *factory_name;
 
+#ifdef HAVE_DBUS
 	struct rd_device *reserve;
 	struct spa_hook sync_listener;
 	int seq;
+	uint32_t n_acquired;
+#endif
+
 	int priority;
 
 	int profile;
@@ -170,8 +178,6 @@ struct device {
 
 	struct sm_device *sdevice;
 	struct spa_hook listener;
-
-	uint32_t n_acquired;
 
 	unsigned int first:1;
 	unsigned int appeared:1;
@@ -196,7 +202,10 @@ struct impl {
 
 	struct spa_source *jack_timeout;
 	struct pw_proxy *jack_device;
+
+#ifdef HAVE_DBUS
 	unsigned int reserve:1;
+#endif
 };
 
 #undef NAME
@@ -244,10 +253,14 @@ static int node_acquire(void *data)
 
 	node->acquired = true;
 
+#ifdef HAVE_DBUS
 	if (device && device->n_acquired++ == 0)
 		return do_device_acquire(device);
 	else
 		return 0;
+#else
+	return 0;
+#endif
 }
 
 static int node_release(void *data)
@@ -262,8 +275,10 @@ static int node_release(void *data)
 
 	node->acquired = false;
 
+#ifdef HAVE_DBUS
 	if (device && --device->n_acquired == 0 && device->reserve)
 		rd_device_release(device->reserve);
+#endif
 	return 0;
 }
 
@@ -709,6 +724,7 @@ static void set_profile(struct device *device, int index)
 	}
 }
 
+#ifdef HAVE_DBUS
 static void set_jack_profile(struct impl *impl, int index)
 {
 	char buf[1024];
@@ -918,6 +934,7 @@ done:
 	}
 	return 0;
 }
+#endif
 
 static void device_destroy(void *data)
 {
@@ -932,10 +949,12 @@ static void device_destroy(void *data)
 
 	if (device->appeared)
 		spa_hook_remove(&device->device_listener);
+#ifdef HAVE_DBUS
 	if (device->seq != 0)
 		spa_hook_remove(&device->sync_listener);
 	if (device->reserve)
 		rd_device_destroy(device->reserve);
+#endif
 }
 
 static void device_free(void *data)
@@ -965,7 +984,11 @@ static void device_update(void *data)
 			&alsa_device_events, device);
 		sm_object_sync_update(&device->sdevice->obj);
 	}
-	if (device->pending_profile != device->profile && !device->sdevice->locked)
+	if (device->pending_profile != device->profile
+#ifdef HAVE_DBUS
+	&& !device->sdevice->locked
+#endif
+	)
 		set_profile(device, device->pending_profile);
 }
 
@@ -1067,9 +1090,15 @@ static struct device *alsa_create_device(struct impl *impl, uint32_t id,
 
 	if ((card = spa_dict_lookup(info->props, SPA_KEY_API_ALSA_CARD)) != NULL) {
 		device->priority -= atol(card) * 64;
+#ifdef HAVE_DBUS
 		pw_properties_setf(device->props, "api.dbus.ReserveDevice1", "Audio%s", card);
+#endif
 	}
-	do_device_acquire(device);
+#ifdef HAVE_DBUS
+        do_device_acquire(device);
+#else
+	probe_device(device);
+#endif
 
 	return device;
 exit:
@@ -1141,7 +1170,9 @@ static int alsa_start_jack_device(struct impl *impl)
 static void session_destroy(void *data)
 {
 	struct impl *impl = data;
+#ifdef HAVE_DBUS
 	remove_jack_timeout(impl);
+#endif
 	spa_hook_remove(&impl->session_listener);
 	spa_hook_remove(&impl->listener);
 	if (impl->jack_device)
@@ -1152,6 +1183,7 @@ static void session_destroy(void *data)
 	free(impl);
 }
 
+#ifdef HAVE_DBUS
 static void session_dbus_disconnected(void *data)
 {
 	struct device *d;
@@ -1163,11 +1195,14 @@ static void session_dbus_disconnected(void *data)
 		d->reserve = NULL;
 	}
 }
+#endif
 
 static const struct sm_media_session_events session_events = {
 	SM_VERSION_MEDIA_SESSION_EVENTS,
 	.destroy = session_destroy,
+#ifdef HAVE_DBUS
 	.dbus_disconnected = session_dbus_disconnected,
+#endif
 };
 
 int sm_alsa_monitor_start(struct sm_media_session *session)
@@ -1202,7 +1237,9 @@ int sm_alsa_monitor_start(struct sm_media_session *session)
 	if ((str = pw_properties_get(impl->conf, "properties")) != NULL)
 		pw_properties_update_string(impl->props, str, strlen(str));
 
+#ifdef HAVE_DBUS
 	impl->reserve = pw_properties_get_bool(impl->props, "alsa.reserve", true);
+#endif
 
 	impl->handle = pw_context_load_spa_handle(context, SPA_NAME_API_ALSA_ENUM_UDEV, NULL);
 	if (impl->handle == NULL) {

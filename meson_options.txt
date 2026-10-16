@@ -34,3 +34,4 @@ option('with-module-sets',
 	type : 'array',
 	choices : ['alsa', 'jack', 'pulseaudio'],
 	value : ['jack', 'pulseaudio'])
+option('dbus', type : 'feature', value : 'auto', description : 'D-Bus support')

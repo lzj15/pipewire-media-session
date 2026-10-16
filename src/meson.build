@@ -4,9 +4,17 @@ if systemd.found() and systemd_dep.found()
   sm_logind_src = ['logind.c']
   sm_logind_dep = [systemd_dep]
 endif
+
+dbus_src = []
+if dbus_dep.found()
+  dbus_src = [
+    'access-portal.c',
+    'reserve.c',
+  ]
+endif
+
 media_session_sources = [
     'access-flatpak.c',
-    'access-portal.c',
     'alsa-no-dsp.c',
     'alsa-midi.c',
     'alsa-monitor.c',
@@ -25,13 +33,12 @@ media_session_sources = [
     'restore-stream.c',
     'policy-ep.c',
     'policy-node.c',
-    'reserve.c',
     'streams-follow-default.c',
     'v4l2-monitor.c',
     'v4l2-endpoint.c',
     'libcamera-monitor.c',
     'suspend-node.c',
-  ] + sm_logind_src
+  ] + sm_logind_src + dbus_src
 pipewire_media_session = executable('pipewire-media-session',
   media_session_sources,
   include_directories: [configinc],

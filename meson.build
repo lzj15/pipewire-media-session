@@ -73,6 +73,11 @@ if systemd.found() and systemd_dep.found()
   cdata.set('HAVE_SYSTEMD', 1)
 endif
 
+dbus_dep = dependency('dbus-1', required: get_option('dbus'))
+if dbus_dep.found()
+  cdata.set('HAVE_DBUS', 1)
+endif
+
 configinc = include_directories('.')
 
 # Find dependencies
@@ -80,7 +85,6 @@ mathlib = cc.find_library('m', required : false)
 rt_lib = cc.find_library('rt', required : false) # clock_gettime
 dl_lib = cc.find_library('dl', required : false)
 pthread_lib = dependency('threads')
-dbus_dep = dependency('dbus-1')
 
 libinotify_dep = (build_machine.system() == 'freebsd'
     ? dependency('libinotify', required: true)

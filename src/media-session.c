@@ -54,7 +54,9 @@
 #include "pipewire/extensions/session-manager.h"
 #include "pipewire/extensions/client-node.h"
 
+#ifdef HAVE_DBUS
 #include <dbus/dbus.h>
+#endif
 
 #include "media-session.h"
 
@@ -2441,7 +2443,9 @@ static const struct {
 
 } modules[] = {
 	{ "flatpak", "manage flatpak access", sm_access_flatpak_start, NULL },
+#ifdef HAVE_DBUS
 	{ "portal", "manage portal permissions", sm_access_portal_start, NULL },
+#endif
 	{ "metadata", "export metadata API", sm_metadata_start, NULL },
 	{ "default-nodes", "restore default nodes", sm_default_nodes_start, NULL },
 	{ "default-profile", "restore default profiles", sm_default_profile_start, NULL },
